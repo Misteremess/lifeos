@@ -346,11 +346,16 @@ label.lbl { font-size: 12px; font-weight: 600; color: var(--text2); display: blo
 .hero { position: relative; min-height: 92vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 70px 24px 40px; overflow: hidden; isolation: isolate; }
 .hero-video-wrap { position: absolute; inset: 0; z-index: -2; background: linear-gradient(160deg, #0b0b10, #16161c); }
-.hero-video-wrap video { width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.hero-video-wrap video { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
 .hero-video-wrap .hero-fallback { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%), var(--bg2); }
-.hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 55%, transparent) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 65%, var(--bg) 100%); }
-.hero h1 { font-size: 52px; letter-spacing: -1.6px; max-width: 780px; line-height: 1.08; }
-.hero p.sub { max-width: 560px; color: var(--text2); font-size: 17px; margin-top: 14px; }
+/* Un velo oscuro fijo (no ligado al tema) mantiene el texto legible sin tapar el vídeo;
+   solo se oscurece de verdad cerca del pie, donde el hero cede paso a la siguiente sección. */
+.hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.22) 55%, var(--bg) 100%); }
+.hero h1 { font-size: 52px; letter-spacing: -1.6px; max-width: 780px; line-height: 1.08; color: #fff; text-shadow: 0 2px 20px rgba(0,0,0,.35); }
+.hero p.sub { max-width: 560px; color: rgba(255,255,255,.86); font-size: 17px; margin-top: 14px; text-shadow: 0 1px 12px rgba(0,0,0,.3); }
+.hero .pub-kicker { color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.3); }
+.hero-scroll { color: rgba(255,255,255,.7) !important; }
+.hero-scroll .dot { background: rgba(255,255,255,.7) !important; }
 @media (max-width: 640px) { .hero h1 { font-size: 32px; } .hero { min-height: 82vh; padding-top: 40px; } }
 .hero-badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
 .hero-preview { margin-top: 40px; width: min(920px, 92vw); border-radius: 20px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -410,9 +415,12 @@ label.lbl { font-size: 12px; font-weight: 600; color: var(--text2); display: blo
 .auth-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) min(480px, 42vw); }
 @media (max-width: 900px) { .auth-shell { grid-template-columns: 1fr; } }
 .auth-visual { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 40px; }
-.auth-visual video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; z-index: 0; }
-.auth-visual .auth-visual-overlay { position: absolute; inset: 0; background: linear-gradient(200deg, color-mix(in srgb, var(--bg) 30%, transparent), var(--bg) 95%); }
-.auth-visual .auth-visual-content { position: relative; z-index: 1; }
+.auth-visual video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .92; z-index: 0; }
+/* Velo oscuro fijo (no ligado al tema) para que el logo y el texto sigan siendo legibles
+   sobre el vídeo sin apagarlo — el degradado solo se cierra de verdad junto al borde inferior. */
+.auth-visual .auth-visual-overlay { position: absolute; inset: 0; background: linear-gradient(200deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.7) 100%); }
+.auth-visual .auth-visual-content { position: relative; z-index: 1; color: #fff; }
+.auth-visual .auth-visual-content p { color: rgba(255,255,255,.85); text-shadow: 0 1px 10px rgba(0,0,0,.3); }
 @media (max-width: 900px) { .auth-visual { display: none; } }
 .auth-form-col { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 32px; background: var(--surface); border-left: 1px solid var(--border); }
 .auth-card { width: min(380px, 100%); }
