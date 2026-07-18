@@ -1,93 +1,128 @@
-// Capa de autenticación local — aislada del store de datos de la app (lifeos-v1).
-//
-// IMPORTANTE (producción): esto es persistencia local de demostración, NO un sistema de
-// autenticación seguro. Las contraseñas se guardan hasheadas con SubtleCrypto (SHA-256 + sal),
-// pero sin backend no hay verificación real de identidad, ni recuperación de contraseña real,
-// ni protección contra manipulación del localStorage. Para producción, sustituir esta capa por
-// un proveedor real (p. ej. Supabase Auth, Auth0, NextAuth) manteniendo la misma interfaz pública:
-// registerUser, loginUser, logoutUser, getSession, requestPasswordReset, onAuthChange.
+// Capa de autenticación — Firebase Authentication (email/contraseña).
+// Expone la misma interfaz que antes (registerUser, loginUser, logoutUser, getSession,
+// onAuthChange, requestPasswordReset, markOnboarded, deleteAccount) para que el resto
+// de la app no dependa del proveedor concreto.
 
-const USERS_KEY = 'lifeos-auth-users-v1'
-const SESSION_KEY = 'lifeos-auth-session-v1'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  updateProfile,
+  deleteUser,
+} from 'firebase/auth'
+import { auth } from './firebase.js'
 
-function loadUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY)) || [] } catch { return [] }
+const ONBOARD_KEY = 'lifeos-onboarded-uids'
+
+function readOnboardedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(ONBOARD_KEY)) || []) } catch { return new Set() }
 }
-function saveUsers(users) { localStorage.setItem(USERS_KEY, JSON.stringify(users)) }
-
-async function hash(pw, salt) {
-  const enc = new TextEncoder().encode(salt + ':' + pw)
-  const buf = await crypto.subtle.digest('SHA-256', enc)
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+function writeOnboardedSet(set) {
+  localStorage.setItem(ONBOARD_KEY, JSON.stringify([...set]))
 }
 
-function randomSalt() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('')
+function toSession(user) {
+  if (!user) return null
+  return {
+    id: user.uid,
+    email: user.email,
+    name: user.displayName || user.email.split('@')[0],
+    onboarded: readOnboardedSet().has(user.uid),
+    createdAt: user.metadata?.creationTime || null,
+  }
 }
+
+let cachedSession = null
+let ready = false
+const listeners = new Set()
+
+onAuthStateChanged(auth, user => {
+  cachedSession = toSession(user)
+  ready = true
+  listeners.forEach(fn => fn(cachedSession))
+})
 
 export function getSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)) } catch { return null }
+  return cachedSession
 }
 
-const listeners = new Set()
-export function onAuthChange(fn) { listeners.add(fn); return () => listeners.delete(fn) }
-function emit() { const s = getSession(); listeners.forEach(fn => fn(s)) }
+export function isAuthReady() {
+  return ready
+}
 
-function setSession(user) {
-  const session = { email: user.email, name: user.name, id: user.id, onboarded: !!user.onboarded, createdAt: user.createdAt }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-  emit()
-  return session
+// Registers fn for future changes; if the initial auth state has already
+// resolved (Firebase resolves it asynchronously, possibly before a caller
+// subscribes), fn is also invoked immediately with the current session so
+// no state transition is missed.
+export function onAuthChange(fn) {
+  listeners.add(fn)
+  if (ready) fn(cachedSession)
+  return () => listeners.delete(fn)
+}
+
+function friendlyError(err) {
+  const map = {
+    'auth/email-already-in-use': 'Ya existe una cuenta con este correo. Inicia sesión en su lugar.',
+    'auth/invalid-email': 'El correo no es válido.',
+    'auth/weak-password': 'La contraseña es demasiado débil.',
+    'auth/invalid-credential': 'El correo o la contraseña no son correctos.',
+    'auth/wrong-password': 'La contraseña no es correcta.',
+    'auth/user-not-found': 'No encontramos una cuenta con ese correo.',
+    'auth/too-many-requests': 'Demasiados intentos. Prueba de nuevo en unos minutos.',
+  }
+  return new Error(map[err.code] || 'No se pudo completar la operación. Inténtalo de nuevo.')
 }
 
 export async function registerUser({ name, email, password }) {
-  email = email.trim().toLowerCase()
-  const users = loadUsers()
-  if (users.some(u => u.email === email)) {
-    throw new Error('Ya existe una cuenta con este correo. Inicia sesión en su lugar.')
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
+    if (name) await updateProfile(cred.user, { displayName: name })
+    cachedSession = toSession(cred.user)
+    listeners.forEach(fn => fn(cachedSession))
+    return cachedSession
+  } catch (err) {
+    throw friendlyError(err)
   }
-  const salt = randomSalt()
-  const passHash = await hash(password, salt)
-  const user = { id: 'u_' + Date.now().toString(36), name, email, salt, passHash, onboarded: false, createdAt: new Date().toISOString() }
-  users.push(user)
-  saveUsers(users)
-  return setSession(user)
 }
 
 export async function loginUser({ email, password }) {
-  email = email.trim().toLowerCase()
-  const users = loadUsers()
-  const user = users.find(u => u.email === email)
-  if (!user) throw new Error('No encontramos una cuenta con ese correo.')
-  const check = await hash(password, user.salt)
-  if (check !== user.passHash) throw new Error('La contraseña no es correcta.')
-  return setSession(user)
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
+    cachedSession = toSession(cred.user)
+    listeners.forEach(fn => fn(cachedSession))
+    return cachedSession
+  } catch (err) {
+    throw friendlyError(err)
+  }
 }
 
-export function logoutUser() {
-  localStorage.removeItem(SESSION_KEY)
-  emit()
+export async function logoutUser() {
+  await signOut(auth)
 }
 
 export function markOnboarded() {
-  const session = getSession()
-  if (!session) return
-  const users = loadUsers()
-  const idx = users.findIndex(u => u.id === session.id)
-  if (idx >= 0) { users[idx].onboarded = true; saveUsers(users) }
-  setSession(users[idx] || session)
+  const user = auth.currentUser
+  if (!user) return
+  const set = readOnboardedSet()
+  set.add(user.uid)
+  writeOnboardedSet(set)
+  cachedSession = toSession(user)
+  listeners.forEach(fn => fn(cachedSession))
 }
 
-// Simulado: sin backend de correo no se puede enviar un email real. No revela si el
-// correo existe o no (evita enumeración de cuentas), y siempre resuelve tras una espera breve.
-export function requestPasswordReset(email) {
-  return new Promise(resolve => setTimeout(resolve, 900))
+// No revela si el correo existe o no (evita enumeración de cuentas).
+export async function requestPasswordReset(email) {
+  try {
+    await sendPasswordResetEmail(auth, email.trim().toLowerCase())
+  } catch {
+    // se ignora deliberadamente: el mensaje de éxito es el mismo exista o no la cuenta
+  }
 }
 
-export function deleteAccount() {
-  const session = getSession()
-  if (!session) return
-  const users = loadUsers().filter(u => u.id !== session.id)
-  saveUsers(users)
-  logoutUser()
+export async function deleteAccount() {
+  const user = auth.currentUser
+  if (!user) return
+  await deleteUser(user)
 }

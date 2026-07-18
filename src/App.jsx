@@ -21,7 +21,10 @@ const NAV = [
 
 export default function App() {
   const [session, setSession] = useState(getSession())
-  useEffect(() => onAuthChange(setSession), [])
+  const [authReady, setAuthReady] = useState(false)
+  useEffect(() => onAuthChange(s => { setSession(s); setAuthReady(true) }), [])
+
+  if (!authReady) return <div className="pub" style={{ minHeight: '100vh' }} />
 
   return (
     <RouterProvider>
@@ -36,10 +39,11 @@ function RouteSwitch({ session }) {
 
   useEffect(() => { window.scrollTo(0, 0) }, [path])
 
-  if (path === '/') return <Landing />
   // Redirects are side effects, not render output — doing them inline during
   // render trips React's "setState while rendering another component" guard
   // and can silently drop the navigation. Compute the target, then effect it.
+  // Every hook below must run on every path — including '/' — so the early
+  // returns for actual screens stay after all hook calls (Rules of Hooks).
   const redirectTo =
     (path === '/login' && session) ? '/app/inicio' :
     (path === '/register' && session) ? '/app/inicio' :
@@ -50,6 +54,7 @@ function RouteSwitch({ session }) {
 
   useEffect(() => { if (redirectTo) navigate(redirectTo) }, [redirectTo])
 
+  if (path === '/') return <Landing />
   if (redirectTo) return null
   if (path === '/login') return <LoginPage />
   if (path === '/register') return <RegisterPage />
