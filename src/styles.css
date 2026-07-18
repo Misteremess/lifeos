@@ -116,7 +116,8 @@ a { color: inherit; }
   border: 1px solid var(--border);
 }
 
-.main { flex: 1; margin-left: var(--nav-w); padding: 28px 32px 80px; max-width: 1240px; }
+.main { flex: 1; margin-left: var(--nav-w); padding: 28px 32px 80px; }
+.main-inner { max-width: 1240px; margin: 0 auto; }
 .mobile-nav, .fab { display: none; }
 
 @media (max-width: 900px) {

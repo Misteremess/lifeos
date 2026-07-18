@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from 'react'
-import { generateDemoData, todayKey, levelFromXp } from './data.js'
+import { generateEmptyData, todayKey, levelFromXp } from './data.js'
 
 const KEY = 'lifeos-v1'
 const Ctx = createContext(null)
@@ -9,7 +9,7 @@ function load() {
     const raw = localStorage.getItem(KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
-  return generateDemoData()
+  return generateEmptyData()
 }
 
 function ensureToday(state) {
@@ -60,7 +60,7 @@ function reducer(state, action) {
       const day = state.days[k]
       return patchDay(k, { frictions: [...day.frictions, action.f] })
     }
-    case 'reset': { localStorage.removeItem(KEY); return ensureToday(generateDemoData()) }
+    case 'reset': { localStorage.removeItem(KEY); return ensureToday(generateEmptyData()) }
     default: return state
   }
 }

@@ -21,12 +21,6 @@ export const THEMES = [
   { id: 'oled', name: 'OLED', desc: 'Negro puro con acentos neón' },
 ]
 
-// deterministic pseudo-random so demo data is stable across reloads
-function rng(seed) {
-  let s = seed >>> 0
-  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 }
-}
-
 export const todayKey = (d = new Date()) => d.toISOString().slice(0, 10)
 export function dayKey(offset) {
   const d = new Date(); d.setDate(d.getDate() + offset); return todayKey(d)
@@ -40,6 +34,7 @@ export function levelFromXp(xp) {
   return { lvl, into: xp - acc, need, pct: Math.round(((xp - acc) / need) * 100) }
 }
 
+// Catálogo de hábitos sugeridos para el onboarding — plantillas, no datos del usuario.
 export const HABIT_DEFS = [
   { id: 'leer', name: 'Leer 20 minutos', icon: '📖', area: 'aprendizaje', type: 'duración', target: 20, unit: 'min', xp: 15, difficulty: 2, time: '21:30', freq: 'diario' },
   { id: 'entrenar', name: 'Entrenar', icon: '💪', area: 'salud', type: 'sí/no', target: 1, unit: '', xp: 25, difficulty: 3, time: '18:00', freq: 'L,X,V' },
@@ -52,134 +47,35 @@ export const HABIT_DEFS = [
   { id: 'nogasto', name: 'No gastar impulsivamente', icon: '🚫', area: 'finanzas', type: 'negativo', target: 1, unit: '', xp: 15, difficulty: 2, time: '', freq: 'diario' },
 ]
 
-const MOOD_TAGS = ['tranquilo', 'motivado', 'cansado', 'estresado', 'contento', 'disperso', 'enfocado', 'social']
-const FRICTIONS = ['Cansancio', 'Falta de tiempo', 'Distracciones', 'Ansiedad', 'Mala planificación', 'Falta de motivación', 'Entorno', 'Dificultad de la tarea']
-const EXPENSE_CATS = ['Comida', 'Ocio', 'Transporte', 'Suscripciones', 'Hogar', 'Compras', 'Salud']
-
-export function generateDemoData() {
-  const rand = rng(42)
-  const days = {}
-  const DAYS_BACK = 42
-  for (let i = DAYS_BACK; i >= 0; i--) {
-    const key = dayKey(-i)
-    const d = new Date(); d.setDate(d.getDate() - i)
-    const dow = d.getDay()
-    const weekend = dow === 0 || dow === 6
-    // simulate a dip ~2 weeks ago, and strong recent momentum
-    const phase = i > 25 ? 0.65 : i > 12 ? 0.45 : 0.82
-    const dayEnergyBase = weekend ? 0.6 : 0.7
-    const habits = {}
-    for (const h of HABIT_DEFS) {
-      const p = phase * (1 - h.difficulty * 0.08) + (h.id === 'agua' ? 0.15 : 0)
-      const done = rand() < p
-      habits[h.id] = done
-        ? { done: true, value: h.type === 'cantidad' || h.type === 'duración' ? Math.round(h.target * (0.9 + rand() * 0.4) * 10) / 10 : 1 }
-        : { done: false, value: 0 }
-    }
-    const sleepH = Math.round((6 + rand() * 2.8 + (phase > 0.7 ? 0.4 : -0.3)) * 10) / 10
-    const energy = Math.min(10, Math.max(1, Math.round(sleepH - 1.5 + rand() * 3 + (dow === 2 ? -1.2 : 0))))
-    const mood = Math.min(5, Math.max(1, Math.round(2 + phase * 2 + rand() * 1.4 - (energy < 4 ? 0.8 : 0))))
-    const focusSessions = i === 0 ? [] : Array.from({ length: weekend ? (rand() < .4 ? 1 : 0) : Math.floor(rand() * 3 + phase * 2) }, () => ({
-      minutes: [25, 25, 45, 50, 90][Math.floor(rand() * 5)],
-      project: ['Curso de diseño', 'Proyecto LifeOS', 'Cliente A', 'Lectura técnica'][Math.floor(rand() * 4)],
-      integrity: Math.round((0.6 + phase * 0.3 + rand() * 0.15) * 100),
-      interruptions: Math.floor(rand() * 3),
-    }))
-    const expenses = []
-    const nExp = weekend ? Math.floor(rand() * 3) + 1 : Math.floor(rand() * 2)
-    for (let e = 0; e < nExp; e++) {
-      const cat = EXPENSE_CATS[Math.floor(rand() * EXPENSE_CATS.length)]
-      expenses.push({
-        cat, amount: Math.round((cat === 'Ocio' ? 8 + rand() * 40 : 3 + rand() * 25) * 100) / 100,
-        impulsive: rand() < (mood <= 2 ? 0.4 : 0.12),
-        label: { Comida: 'Supermercado', Ocio: 'Cine y cena', Transporte: 'Metro', Suscripciones: 'Streaming', Hogar: 'Ferretería', Compras: 'Ropa', Salud: 'Farmacia' }[cat],
-      })
-    }
-    const frictions = phase < 0.5 && rand() < 0.5 ? [FRICTIONS[Math.floor(rand() * FRICTIONS.length)]] : []
-    days[key] = {
-      habits, sleepH, sleepQuality: Math.min(5, Math.max(1, Math.round(sleepH / 1.8))),
-      bed: '23:' + String(Math.floor(rand() * 50)).padStart(2, '0'),
-      wake: '07:' + String(Math.floor(rand() * 40)).padStart(2, '0'),
-      energy, stress: Math.min(10, Math.max(1, 8 - energy + Math.floor(rand() * 3))),
-      mood, moodTags: [MOOD_TAGS[Math.floor(rand() * MOOD_TAGS.length)]],
-      steps: Math.round(3000 + rand() * 9000 * (habits.pasos?.done ? 1.1 : 0.6)),
-      water: habits.agua?.done ? 2 + Math.round(rand() * 8) / 10 : Math.round(rand() * 15) / 10,
-      focusSessions, expenses, frictions,
-      closed: i > 0,
-      note: '',
-    }
-  }
-  // journal entries
-  const journal = [
-    { id: 1, date: dayKey(-1), template: 'Reflexión diaria', title: 'Un día de ritmo constante', mood: 4, tags: ['trabajo', 'rutina'], fav: true, body: 'Hoy conseguí mantener las tres sesiones de enfoque planificadas. La clave fue silenciar el móvil desde las 9:00. Por la tarde bajé el ritmo, pero el paseo de 30 minutos me ayudó a despejarme antes de la sesión de estudio.' },
-    { id: 2, date: dayKey(-3), template: 'Gratitud', title: 'Tres cosas pequeñas', mood: 4, tags: ['gratitud'], fav: false, body: '1. El café de la mañana sin prisa.\n2. La llamada con mi hermana.\n3. Terminar el capítulo 4 del curso, que llevaba semanas pendiente.' },
-    { id: 3, date: dayKey(-7), template: 'Revisión semanal', title: 'Semana de recuperación', mood: 3, tags: ['revisión'], fav: true, body: 'Después de dos semanas flojas, esta ha sido la semana del cambio. Recuperé el hábito de entrenar (3/3) y dormí mejor. Pendiente: el presupuesto de ocio se me fue un 15%. La próxima semana: planificar las cenas del fin de semana con antelación.' },
-    { id: 4, date: dayKey(-12), template: 'Brain dump', title: 'Ideas sueltas', mood: 3, tags: ['ideas'], fav: false, body: 'Posible proyecto: automatizar el informe mensual. Buscar un curso de tipografía. Preguntar a Marta por el libro de hábitos atómicos. Revisar la suscripción del gimnasio, quizá cambiar al plan trimestral.' },
-    { id: 5, date: dayKey(-18), template: 'Lecciones aprendidas', title: 'Sobre empezar demasiadas cosas', mood: 2, tags: ['reflexión'], fav: false, body: 'Esta semana intenté arrancar tres hábitos nuevos a la vez y abandoné los tres. Lección: uno cada vez, empezando por la versión mínima. Mejor 10 minutos de lectura diaria que 45 imposibles.' },
-  ]
-  const goals = [
-    {
-      id: 'g1', name: 'Terminar curso de diseño de producto', area: 'aprendizaje', type: 'numérico',
-      metric: 'módulos', start: 0, target: 12, current: 8, deadline: dayKey(30), priority: 'alta', difficulty: 3,
-      motivation: 'Dar el salto profesional hacia producto y poder liderar proyectos completos.',
-      milestones: [
-        { name: 'Fundamentos (mód. 1-3)', done: true }, { name: 'Research (mód. 4-6)', done: true },
-        { name: 'Prototipado (mód. 7-9)', done: false }, { name: 'Proyecto final', done: false },
-      ],
-      linkedHabits: ['estudiar'], reward: 'Cena en el japonés', weeklyPace: [1, 0, 2, 1, 2, 2],
-    },
-    {
-      id: 'g2', name: 'Ahorrar 3.000 € para el viaje', area: 'finanzas', type: 'financiero',
-      metric: '€', start: 0, target: 3000, current: 1950, deadline: dayKey(75), priority: 'media', difficulty: 2,
-      motivation: 'Tres semanas en Japón el próximo año, sin depender de crédito.',
-      milestones: [
-        { name: 'Primer 25%', done: true }, { name: 'Mitad del camino', done: true },
-        { name: '75% — reservar vuelos', done: false }, { name: 'Objetivo completo', done: false },
-      ],
-      linkedHabits: ['nogasto'], reward: 'Reservar el vuelo', weeklyPace: [200, 150, 100, 250, 300, 180],
-    },
-    {
-      id: 'g3', name: 'Correr 10 km sin parar', area: 'salud', type: 'salud',
-      metric: 'km', start: 3, target: 10, current: 6.5, deadline: dayKey(45), priority: 'media', difficulty: 3,
-      motivation: 'Recuperar la forma física que tenía hace dos años.',
-      milestones: [
-        { name: '5 km continuos', done: true }, { name: '7 km continuos', done: false },
-        { name: 'Carrera popular 10K', done: false },
-      ],
-      linkedHabits: ['entrenar', 'pasos'], reward: 'Zapatillas nuevas', weeklyPace: [0.5, 0, 0.8, 0.5, 1, 0.7],
-    },
-  ]
-  const missions = [
-    { id: 'm1', type: 'diaria', name: 'Completa 3 hábitos antes de las 10:00', progress: 2, target: 3, xp: 30, done: false },
-    { id: 'm2', type: 'diaria', name: 'Registra tu estado de ánimo', progress: 0, target: 1, xp: 10, done: false },
-    { id: 'm3', type: 'semanal', name: '4 sesiones de enfoque esta semana', progress: 3, target: 4, xp: 60, done: false },
-    { id: 'm4', type: 'semanal', name: 'Dormir +7 h durante 3 días', progress: 3, target: 3, xp: 50, done: true },
-    { id: 'm5', type: 'semanal', name: 'Un día sin gastos impulsivos', progress: 1, target: 1, xp: 40, done: true },
-    { id: 'm6', type: 'mensual', name: 'Completa 2 revisiones semanales', progress: 1, target: 2, xp: 100, done: false },
-    { id: 'm7', type: 'especial', name: 'Recupera el área de Creatividad', progress: 1, target: 5, xp: 120, done: false },
-  ]
-  const rewards = [
-    { id: 'r1', name: 'Ver una película', cost: 40, icon: '🎬' },
-    { id: 'r2', name: 'Comprar un libro', cost: 80, icon: '📚' },
-    { id: 'r3', name: 'Jugar dos horas', cost: 60, icon: '🎮' },
-    { id: 'r4', name: 'Salir a cenar', cost: 150, icon: '🍜' },
-    { id: 'r5', name: 'Tarde libre', cost: 250, icon: '🏖️' },
-  ]
+// Estado inicial real: un usuario nuevo empieza sin datos, sin historial y sin logros
+// falsos. Todo lo que aparece después (hábitos, objetivos, XP, racha) es fruto de su
+// propio uso — el onboarding solo ayuda a configurar la estructura inicial.
+export function generateEmptyData({ name } = {}) {
   return {
-    onboarded: true,
-    profile: { name: 'Máximo', title: 'Arquitecto de la constancia', joined: dayKey(-42) },
+    onboarded: false,
+    profile: { name: name || 'Tú', title: 'Recién llegado', joined: todayKey() },
     theme: 'porcelain',
-    xp: 4180, coins: 215,
-    areaXp: { salud: 980, trabajo: 1240, aprendizaje: 860, finanzas: 380, relaciones: 420, descanso: 560, crecimiento: 610, creatividad: 130 },
-    attributes: { Disciplina: 62, Constancia: 71, Enfoque: 58, Energía: 64, Conocimiento: 55, Equilibrio: 49, Autocuidado: 60, Organización: 66, Resiliencia: 68 },
-    habits: HABIT_DEFS,
-    days, journal, goals, missions, rewards,
-    unlockedAchievements: ['a1', 'a2', 'a3', 'a10', 'a20', 'a30', 'a40', 'a52', 'a60', 'a71', 'a80'],
+    xp: 0, coins: 0,
+    areaXp: {},
+    attributes: { Disciplina: 0, Constancia: 0, Enfoque: 0, Energía: 0, Conocimiento: 0, Equilibrio: 0, Autocuidado: 0, Organización: 0, Resiliencia: 0 },
+    habits: [],
+    days: {},
+    journal: [],
+    goals: [],
+    missions: [],
+    rewards: [
+      { id: 'r1', name: 'Ver una película', cost: 40, icon: '🎬' },
+      { id: 'r2', name: 'Comprar un libro', cost: 80, icon: '📚' },
+      { id: 'r3', name: 'Jugar dos horas', cost: 60, icon: '🎮' },
+      { id: 'r4', name: 'Salir a cenar', cost: 150, icon: '🍜' },
+      { id: 'r5', name: 'Tarde libre', cost: 250, icon: '🏖️' },
+    ],
+    unlockedAchievements: [],
     streakSavers: 1,
-    mvd: ['agua', 'diario', 'pasos'],
-    budgets: { Ocio: 120, Comida: 300, Compras: 100, Suscripciones: 45 },
+    mvd: [],
+    budgets: {},
     dashboardWidgets: ['resumen', 'nivel', 'racha', 'habitos', 'objetivos', 'animo', 'sueño', 'enfoque', 'finanzas', 'areas', 'actividad', 'insight'],
-    weeklyReviews: [{ week: dayKey(-7), wins: 'Recuperé el entrenamiento', focusH: 9.5, reflection: 'Semana de vuelta al ritmo.' }],
+    weeklyReviews: [],
   }
 }
 

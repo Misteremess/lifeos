@@ -435,7 +435,7 @@ export function Settings() {
               Object.entries(state.days).sort().forEach(([k, d]) => rows.push([k, d.sleepH, d.energy, d.mood, d.steps, Object.values(d.habits).filter(h => h.done).length]))
               download('lifeos-export.csv', rows.map(r => r.join(',')).join('\n'), 'text/csv')
             }}>Exportar CSV</button>
-            <button className="btn" onClick={() => { if (confirm('¿Restablecer todos los datos de demostración?')) dispatch({ type: 'reset' }) }} style={{ color: 'var(--bad)' }}>Restablecer datos</button>
+            <button className="btn" onClick={() => { if (confirm('¿Restablecer todos tus datos? Esta acción no se puede deshacer.')) dispatch({ type: 'reset' }) }} style={{ color: 'var(--bad)' }}>Restablecer datos</button>
           </div>
           <div className="xs faint" style={{ marginTop: 10 }}>Tus datos viven solo en este dispositivo (localStorage). Copias de seguridad e integraciones: próximamente.</div>
         </div>

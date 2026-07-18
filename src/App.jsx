@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useStore } from './store.jsx'
 import { Icons, Modal, Ring, Num } from './components.jsx'
 import { Logo } from './Logo.jsx'
-import { THEMES, AREAS, dayKey, todayKey, levelFromXp, dayCompletion, globalStreak, momentum, dayArchetype } from './data.js'
+import { THEMES, AREAS, HABIT_DEFS, dayKey, todayKey, levelFromXp, dayCompletion, globalStreak, momentum, dayArchetype } from './data.js'
 import { Home, MyDay, Habits, HabitDetail, NewHabitModal } from './screens1.jsx'
 import { TimeScreen, FocusMode, Goals, GoalDetail, Areas } from './screens2.jsx'
 import { Health, Mood, Finance, Journal } from './screens3.jsx'
@@ -148,13 +148,15 @@ function AppShell({ initialView, onLogout }) {
       </nav>
 
       <main className="main">
-        {recovery && (
-          <div className="card" style={{ marginBottom: 16, borderLeft: '3px solid var(--warn)' }}>
-            <b className="small">Parece que necesitas un día más ligero.</b>
-            <p className="xs muted" style={{ marginTop: 4 }}>Modo recuperación disponible: hoy basta con tu Minimum Viable Day ({state.mvd.length} acciones pequeñas). La constancia se reconstruye, no se fuerza.</p>
-          </div>
-        )}
-        {screens[view]}
+        <div className="main-inner">
+          {recovery && (
+            <div className="card" style={{ marginBottom: 16, borderLeft: '3px solid var(--warn)' }}>
+              <b className="small">Parece que necesitas un día más ligero.</b>
+              <p className="xs muted" style={{ marginTop: 4 }}>Modo recuperación disponible: hoy basta con tu Minimum Viable Day ({state.mvd.length} acciones pequeñas). La constancia se reconstruye, no se fuerza.</p>
+            </div>
+          )}
+          {screens[view]}
+        </div>
       </main>
 
       <nav className="mobile-nav" aria-label="Navegación móvil">
@@ -296,27 +298,83 @@ function CloseDayModal({ onClose }) {
 }
 
 // ============ ONBOARDING ============
+// Tutorial real de primer uso: un usuario nuevo empieza sin hábitos, sin objetivos y sin
+// historial (ver generateEmptyData en data.js). Este asistente construye su configuración
+// inicial a partir de sus propias respuestas — nada aquí es contenido de demostración.
+// Puede completarse paso a paso o saltarse en cualquier momento con "Saltar tutorial".
+const GOAL_AREA_HINTS = {
+  Energía: ['salud', 'descanso'], Enfoque: ['crecimiento', 'trabajo'], Sueño: ['descanso'],
+  Finanzas: ['finanzas'], Equilibrio: ['relaciones', 'crecimiento'], Constancia: [],
+}
+const toggleIn = (setter, arr, id) => setter(arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id])
+
 function Onboarding({ onDone }) {
   const { state, dispatch } = useStore()
   const [step, setStep] = useState(0)
-  const [selAreas, setSelAreas] = useState(['salud', 'aprendizaje'])
-  const [selHabits, setSelHabits] = useState(['leer', 'agua'])
-  const [selGoals, setSelGoals] = useState(['Constancia', 'Energía'])
-  const [goal, setGoal] = useState('')
+  const [profileName, setProfileName] = useState(getSession()?.name || '')
+  const [selGoals, setSelGoals] = useState([])
+  const [selAreas, setSelAreas] = useState([])
+  const [selHabits, setSelHabits] = useState([])
+  const [goalName, setGoalName] = useState('')
+  const [selMvd, setSelMvd] = useState([])
   const [theme, setTheme] = useState(state.theme)
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+
+  const hintedAreas = selGoals.flatMap(g => GOAL_AREA_HINTS[g] || [])
+  const orderedHabitDefs = hintedAreas.length
+    ? [...HABIT_DEFS].sort((a, b) => (hintedAreas.includes(b.area) ? 1 : 0) - (hintedAreas.includes(a.area) ? 1 : 0))
+    : HABIT_DEFS
+
+  function finish() {
+    dispatch({ type: 'set', patch: {
+      theme,
+      profile: { ...state.profile, name: profileName.trim() || state.profile.name },
+      mvd: selMvd,
+    } })
+    selHabits.forEach(id => {
+      const def = HABIT_DEFS.find(h => h.id === id)
+      if (def) dispatch({ type: 'addHabit', habit: { ...def } })
+    })
+    if (goalName.trim()) {
+      dispatch({ type: 'addGoal', goal: {
+        id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: goalName.trim(), area: selAreas[0] || 'crecimiento', type: 'numérico', metric: 'progreso',
+        start: 0, target: 10, current: 0, deadline: dayKey(30), priority: 'media', difficulty: 2,
+        motivation: '',
+        milestones: [{ name: '25%', done: false }, { name: '50%', done: false }, { name: '75%', done: false }, { name: 'Completado', done: false }],
+        linkedHabits: [], reward: '', weeklyPace: [0],
+      } })
+    }
+    onDone()
+  }
+
   const steps = [
-    { t: 'Bienvenido a LifeOS', b: <p className="muted">Vamos a montar tu sistema personal en un minuto. Sin formularios interminables — solo unas pocas decisiones.</p> },
-    { t: '¿Qué quieres mejorar?', b: <div className="row wrap">{['Constancia', 'Energía', 'Enfoque', 'Sueño', 'Finanzas', 'Equilibrio'].map(x => <button key={x} className={`chip chip-btn ${selGoals.includes(x) ? 'sel' : ''}`} onClick={() => setSelGoals(s => s.includes(x) ? s.filter(y => y !== x) : [...s, x])}>{x}</button>)}</div> },
-    { t: 'Elige tus áreas de vida', b: <div className="row wrap">{AREAS.map(a => <button key={a.id} className={`chip chip-btn ${selAreas.includes(a.id) ? 'sel' : ''}`} onClick={() => setSelAreas(s => s.includes(a.id) ? s.filter(x => x !== a.id) : [...s, a.id])}>{a.name}</button>)}</div> },
-    { t: 'Hábitos iniciales', b: <div className="stack">{state.habits.slice(0, 6).map(h => <button key={h.id} className={`habit-row ${selHabits.includes(h.id) ? '' : ''}`} style={{ borderColor: selHabits.includes(h.id) ? 'var(--accent)' : 'var(--border)' }} onClick={() => setSelHabits(s => s.includes(h.id) ? s.filter(x => x !== h.id) : [...s, h.id])}><span>{h.icon}</span><span className="habit-name">{h.name}</span>{selHabits.includes(h.id) && <span style={{ marginLeft: 'auto' }}>✓</span>}</button>)}</div> },
-    { t: 'Tu objetivo principal', b: <input className="input" autoFocus placeholder="Ej. Terminar el curso de diseño" value={goal} onChange={e => setGoal(e.target.value)} /> },
+    { t: 'Bienvenido a LifeOS', b: <p className="muted">Vamos a montar tu sistema personal en unos minutos. Sin formularios interminables — solo unas pocas decisiones, y todo se puede ajustar después. Empiezas de cero: nada de lo que veas a partir de ahora es de ejemplo.</p> },
+    { t: 'Tu perfil', b: <div className="field"><label className="lbl">Nombre visible</label><input className="input" autoFocus value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="¿Cómo te llamamos?" /></div> },
+    { t: '¿Qué quieres mejorar?', b: <div><p className="xs muted" style={{ marginBottom: 10 }}>Elige lo que más te importa ahora mismo — usaremos esto para sugerirte hábitos.</p><div className="row wrap">{['Constancia', 'Energía', 'Enfoque', 'Sueño', 'Finanzas', 'Equilibrio'].map(x => <button key={x} className={`chip chip-btn ${selGoals.includes(x) ? 'sel' : ''}`} onClick={() => toggleIn(setSelGoals, selGoals, x)}>{x}</button>)}</div></div> },
+    { t: 'Elige tus áreas de vida', b: <div><p className="xs muted" style={{ marginBottom: 10 }}>Selecciona las áreas que quieres seguir de cerca. Puedes cambiarlo después.</p><div className="row wrap">{AREAS.map(a => <button key={a.id} className={`chip chip-btn ${selAreas.includes(a.id) ? 'sel' : ''}`} onClick={() => toggleIn(setSelAreas, selAreas, a.id)}>{a.name}</button>)}</div></div> },
+    { t: 'Hábitos iniciales', b: <div><p className="xs muted" style={{ marginBottom: 10 }}>Elige entre 3 y 5 para empezar (o ninguno, si prefieres crear los tuyos más adelante).</p><div className="stack">{orderedHabitDefs.map(h => <button key={h.id} className="habit-row" style={{ borderColor: selHabits.includes(h.id) ? 'var(--accent)' : 'var(--border)' }} onClick={() => toggleIn(setSelHabits, selHabits, h.id)}><span>{h.icon}</span><span className="habit-name">{h.name}</span>{selHabits.includes(h.id) && <span style={{ marginLeft: 'auto' }}>✓</span>}</button>)}</div></div> },
+    { t: 'Tu primer objetivo', b: <div><p className="xs muted" style={{ marginBottom: 10 }}>Opcional — puedes dejarlo en blanco y crear objetivos más adelante desde «Objetivos».</p><input className="input" placeholder="Ej. Terminar el curso de diseño" value={goalName} onChange={e => setGoalName(e.target.value)} /></div> },
+    { t: 'Minimum Viable Day', b: selHabits.length
+      ? <div><p className="xs muted" style={{ marginBottom: 10 }}>Elige de 1 a 3 acciones mínimas: si solo haces esto, el día ya cuenta.</p><div className="row wrap">{selHabits.map(id => { const h = HABIT_DEFS.find(x => x.id === id); return h ? <button key={id} className={`chip chip-btn ${selMvd.includes(id) ? 'sel' : ''}`} onClick={() => toggleIn(setSelMvd, selMvd, id)}>{h.icon} {h.name}</button> : null })}</div></div>
+      : <p className="muted">Como todavía no has elegido hábitos, puedes configurar tu Minimum Viable Day más adelante desde Ajustes.</p> },
     { t: 'Elige tu tema', b: <div className="grid g2">{THEMES.map(t => <button key={t.id} className={`theme-card ${theme === t.id ? 'sel' : ''}`} onClick={() => setTheme(t.id)}><div className="small" style={{ fontWeight: 650, textAlign: 'left' }}>{t.name}</div><div className="xs faint" style={{ textAlign: 'left' }}>{t.desc}</div></button>)}</div> },
-    { t: 'Tu sistema está listo', b: <div className="stack"><p className="muted">Hemos generado tu dashboard con {selHabits.length} hábitos, {selAreas.length} áreas y tu primer objetivo. Todo es ajustable después.</p><div className="row wrap">{selAreas.map(a => <span key={a} className="chip accent">{AREAS.find(x => x.id === a)?.name}</span>)}</div></div> },
+    { t: 'Todo listo', b: <div className="stack" style={{ gap: 6 }}>
+        <p className="muted" style={{ marginBottom: 4 }}>Esto es lo que vamos a preparar — todo ajustable después.</p>
+        <div className="small">👤 <b>{profileName.trim() || state.profile.name}</b></div>
+        <div className="small">📍 {selAreas.length ? selAreas.map(a => AREAS.find(x => x.id === a)?.name).join(', ') : 'sin áreas seleccionadas todavía'}</div>
+        <div className="small">✅ {selHabits.length} hábito{selHabits.length === 1 ? '' : 's'} inicial{selHabits.length === 1 ? '' : 'es'}</div>
+        <div className="small">🎯 {goalName.trim() ? goalName.trim() : 'sin objetivo inicial'}</div>
+        <div className="small">🌓 Tema {THEMES.find(t => t.id === theme)?.name}</div>
+      </div> },
   ]
   return (
     <div className="landing" style={{ justifyContent: 'center' }}>
       <div className="card anim-in" style={{ width: 'min(480px, 92vw)', textAlign: 'left' }} key={step}>
+        <div className="row between" style={{ marginBottom: 10 }}>
+          <span className="xs faint">Paso {step + 1} de {steps.length}</span>
+          {step < steps.length - 1 && <button className="btn ghost sm" onClick={finish}>Saltar tutorial</button>}
+        </div>
         <div className="pbar thin" style={{ marginBottom: 18 }}><div style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
         <h2 style={{ fontSize: 20, marginBottom: 12 }}>{steps[step].t}</h2>
         {steps[step].b}
@@ -324,7 +382,7 @@ function Onboarding({ onDone }) {
           {step > 0 && <button className="btn" onClick={() => setStep(step - 1)}>Atrás</button>}
           {step < steps.length - 1
             ? <button className="btn primary" onClick={() => setStep(step + 1)}>Continuar</button>
-            : <button className="btn primary" onClick={() => { dispatch({ type: 'set', patch: { theme } }); onDone() }}>Entrar en LifeOS</button>}
+            : <button className="btn primary" onClick={finish}>Entrar en mi LifeOS</button>}
         </div>
       </div>
     </div>
