@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from 'react'
 import { generateEmptyData, todayKey, levelFromXp } from './data.js'
 
-const KEY = 'lifeos-v1'
+// Los datos se guardan por cuenta (una clave de localStorage por uid de Firebase), no en
+// una clave global compartida por el dispositivo — así cada cuenta empieza realmente de
+// cero y varias cuentas en el mismo navegador no se mezclan entre sí.
+const keyFor = (uid) => `lifeos-data-${uid || 'anon'}`
 const Ctx = createContext(null)
 
-function load() {
+function load(uid) {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(keyFor(uid))
     if (raw) return JSON.parse(raw)
   } catch {}
   return generateEmptyData()
@@ -20,7 +23,8 @@ function ensureToday(state) {
   return state
 }
 
-function reducer(state, action) {
+function makeReducer(uid) {
+  return function reducer(state, action) {
   const k = todayKey()
   const patchDay = (key, patch) => ({ ...state, days: { ...state.days, [key]: { ...state.days[key], ...patch } } })
   switch (action.type) {
@@ -60,17 +64,20 @@ function reducer(state, action) {
       const day = state.days[k]
       return patchDay(k, { frictions: [...day.frictions, action.f] })
     }
-    case 'reset': { localStorage.removeItem(KEY); return ensureToday(generateEmptyData()) }
+    case 'reset': { localStorage.removeItem(keyFor(uid)); return ensureToday(generateEmptyData()) }
     default: return state
+  }
   }
 }
 
-export function StoreProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, null, () => ensureToday(load()))
+// key={uid} on the caller (see main.jsx) fully remounts this provider on login/logout,
+// so `uid` is stable for the lifetime of a given instance.
+export function StoreProvider({ uid, children }) {
+  const [state, dispatch] = useReducer(makeReducer(uid), null, () => ensureToday(load(uid)))
   const [toasts, setToasts] = useState([])
   const [levelUp, setLevelUp] = useState(null)
 
-  useEffect(() => { localStorage.setItem(KEY, JSON.stringify(state)) }, [state])
+  useEffect(() => { localStorage.setItem(keyFor(uid), JSON.stringify(state)) }, [state, uid])
   useEffect(() => { document.documentElement.dataset.theme = state.theme }, [state.theme])
 
   const toast = (msg, xp) => {

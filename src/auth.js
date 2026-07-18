@@ -38,8 +38,14 @@ let cachedSession = null
 let ready = false
 const listeners = new Set()
 
-onAuthStateChanged(auth, user => {
-  cachedSession = toSession(user)
+// Reads auth.currentUser (the live, mutated-in-place reference) instead of the
+// callback's `user` argument — registerUser's updateProfile(displayName) runs
+// after sign-up, and this event can fire either before or after that update
+// resolves. Using the closure argument would sometimes race and cache the
+// pre-update snapshot (name falls back to the email prefix). auth.currentUser
+// is always the freshest value regardless of firing order.
+onAuthStateChanged(auth, () => {
+  cachedSession = toSession(auth.currentUser)
   ready = true
   listeners.forEach(fn => fn(cachedSession))
 })
