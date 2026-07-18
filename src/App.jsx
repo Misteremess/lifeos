@@ -301,12 +301,13 @@ function Onboarding({ onDone }) {
   const [step, setStep] = useState(0)
   const [selAreas, setSelAreas] = useState(['salud', 'aprendizaje'])
   const [selHabits, setSelHabits] = useState(['leer', 'agua'])
+  const [selGoals, setSelGoals] = useState(['Constancia', 'Energía'])
   const [goal, setGoal] = useState('')
   const [theme, setTheme] = useState(state.theme)
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
   const steps = [
     { t: 'Bienvenido a LifeOS', b: <p className="muted">Vamos a montar tu sistema personal en un minuto. Sin formularios interminables — solo unas pocas decisiones.</p> },
-    { t: '¿Qué quieres mejorar?', b: <div className="row wrap">{['Constancia', 'Energía', 'Enfoque', 'Sueño', 'Finanzas', 'Equilibrio'].map(x => <button key={x} className="chip chip-btn">{x}</button>)}</div> },
+    { t: '¿Qué quieres mejorar?', b: <div className="row wrap">{['Constancia', 'Energía', 'Enfoque', 'Sueño', 'Finanzas', 'Equilibrio'].map(x => <button key={x} className={`chip chip-btn ${selGoals.includes(x) ? 'sel' : ''}`} onClick={() => setSelGoals(s => s.includes(x) ? s.filter(y => y !== x) : [...s, x])}>{x}</button>)}</div> },
     { t: 'Elige tus áreas de vida', b: <div className="row wrap">{AREAS.map(a => <button key={a.id} className={`chip chip-btn ${selAreas.includes(a.id) ? 'sel' : ''}`} onClick={() => setSelAreas(s => s.includes(a.id) ? s.filter(x => x !== a.id) : [...s, a.id])}>{a.name}</button>)}</div> },
     { t: 'Hábitos iniciales', b: <div className="stack">{state.habits.slice(0, 6).map(h => <button key={h.id} className={`habit-row ${selHabits.includes(h.id) ? '' : ''}`} style={{ borderColor: selHabits.includes(h.id) ? 'var(--accent)' : 'var(--border)' }} onClick={() => setSelHabits(s => s.includes(h.id) ? s.filter(x => x !== h.id) : [...s, h.id])}><span>{h.icon}</span><span className="habit-name">{h.name}</span>{selHabits.includes(h.id) && <span style={{ marginLeft: 'auto' }}>✓</span>}</button>)}</div> },
     { t: 'Tu objetivo principal', b: <input className="input" autoFocus placeholder="Ej. Terminar el curso de diseño" value={goal} onChange={e => setGoal(e.target.value)} /> },
