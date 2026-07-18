@@ -1,0 +1,13 @@
+{
+  "name": "LifeOS — Tu sistema operativo personal",
+  "short_name": "LifeOS",
+  "start_url": "/app/inicio",
+  "display": "standalone",
+  "background_color": "#101014",
+  "theme_color": "#101014",
+  "description": "Organiza hábitos, tiempo, objetivos, energía, finanzas y progreso en un único dashboard personal con estadísticas y gamificación.",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
