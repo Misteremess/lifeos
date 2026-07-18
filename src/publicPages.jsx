@@ -58,10 +58,13 @@ function HeroVideo({ small }) {
     return () => mq.removeEventListener('change', h)
   }, [])
   return (
-    <div className={small ? '' : 'hero-video-wrap'} style={small ? { position: 'absolute', inset: 0 } : undefined}>
+    <div className={small ? 'hero-fallback-wrap' : 'hero-video-wrap'}>
       <div className="hero-fallback" />
       {!reduced && (
-        <video ref={ref} autoPlay loop muted playsInline preload="metadata" poster="/icons/icon.svg"
+        // No poster: a real photo/video poster frame would need its own export step, and a
+        // small square favicon stretched to cover this panel just flashes an oversized logo
+        // while the video buffers. The fallback gradient behind covers that gap instead.
+        <video ref={ref} autoPlay loop muted playsInline preload="auto"
           onError={e => { e.currentTarget.style.display = 'none' }}>
           <source src="/video/landing-background.mp4" type="video/mp4" />
         </video>

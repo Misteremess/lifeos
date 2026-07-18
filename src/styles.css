@@ -345,9 +345,11 @@ label.lbl { font-size: 12px; font-weight: 600; color: var(--text2); display: blo
 
 .hero { position: relative; min-height: 92vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 70px 24px 40px; overflow: hidden; isolation: isolate; }
-.hero-video-wrap { position: absolute; inset: 0; z-index: -2; background: linear-gradient(160deg, #0b0b10, #16161c); }
-.hero-video-wrap video { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
-.hero-video-wrap .hero-fallback { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%), var(--bg2); }
+.hero-video-wrap, .hero-fallback-wrap { position: absolute; inset: 0; z-index: -2; background: linear-gradient(160deg, #0b0b10, #16161c); }
+.hero-video-wrap video, .hero-fallback-wrap video { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
+/* Placeholder shown only for the instant before the video's first frame paints — kept small
+   and subtle (not a full-bleed glow) so it never reads as its own decorative element. */
+.hero-fallback { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 18%), var(--bg2); }
 /* Un velo oscuro fijo (no ligado al tema) mantiene el texto legible sin tapar el vídeo;
    solo se oscurece de verdad cerca del pie, donde el hero cede paso a la siguiente sección. */
 .hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.22) 55%, var(--bg) 100%); }
