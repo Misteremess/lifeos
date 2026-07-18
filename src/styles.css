@@ -416,7 +416,7 @@ label.lbl { font-size: 12px; font-weight: 600; color: var(--text2); display: blo
    dejar un hueco vacío alrededor de la tarjeta de login/registro. */
 .auth-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) min(480px, 42vw); }
 @media (max-width: 900px) { .auth-shell { grid-template-columns: 1fr; } }
-.auth-visual { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 40px; }
+.auth-visual { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; padding: 40px; }
 .auth-visual video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .92; z-index: 0; }
 /* Velo oscuro fijo (no ligado al tema) para que el logo y el texto sigan siendo legibles
    sobre el vídeo sin apagarlo — el degradado solo se cierra de verdad junto al borde inferior. */
